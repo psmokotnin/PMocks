@@ -1,25 +1,26 @@
 <?php
 /** 
- * Loader class extends Zend_Loader for mocking loading objects.
+ * Loader class for mocking loading objects.
  *
  * There are two modes: normal and 'mock'.
- * In normal mode, all the classes are loads normally through Zend_Loader.
+ * In normal mode, all the classes are loads normally from original place.
  * In 'mock' mode, it'll create a mock class for each loaded class.
  * Original class will be copied to a tempory dir with a temporary name.
  * Mock class will extend original.
  * After you've load class in 'mock' mode you can redefine any 
  * method or property of it.
- * 
- * @extends Zend_Loader
- * @version 1.12
  */
 namespace PMocks;
 
-class Loader extends \Zend_Loader
+require_once 'Rewriter.php';
+require_once 'Exception.php';
+
+class Loader
 {
     const MODE_NORMAL = 0;
     const MODE_MOCK   = 1;
     public static $mockPath = 'tests/include';
+    protected static $shutdownRegistered = false;
     
     protected static $mode = self::MODE_NORMAL;
     
@@ -30,7 +31,7 @@ class Loader extends \Zend_Loader
      * @static
      * @return void
      */
-    public static function mockMode($enable = false)
+    public static function mockMode($enable = false, $autoload = false)
     {
         self::$mode = ($enable ? self::MODE_MOCK : self::MODE_NORMAL);
         
@@ -39,10 +40,20 @@ class Loader extends \Zend_Loader
             if (!is_writable(self::$mockPath))
                 throw new Exception('mock path does not exists or not writeable');
 
+            //add mock folder as first in include path
             array_unshift($includePaths, self::$mockPath);
-            register_shutdown_function(function() {
-                \PMocks\Loader::clearMockFolder();
-            });
+            
+            //register script shudown function
+            if (!self::$shutdownRegistered) {
+                register_shutdown_function(array(__CLASS__, 'shutdown'));
+                self::$shutdownRegistered = true;
+            }
+            
+            if ($autoload) {
+                //register autoload
+                spl_autoload_register(array(__CLASS__, 'autoload'));
+            }
+
         } else {
             // remove mock folder from incude path 
             foreach ($includePaths as $i => $p) {
@@ -50,6 +61,9 @@ class Loader extends \Zend_Loader
                     unset($includePaths[$i]);
             }
             self::clearMockFolder();
+            
+            //unregister autoload
+            spl_autoload_unregister(array(__CLASS__, 'autoload'));
         }
         set_include_path(implode(PATH_SEPARATOR, $includePaths));
     }
@@ -60,8 +74,7 @@ class Loader extends \Zend_Loader
     }
     
     /**
-     * Load class through Zend_Loader,
-     * but in 'mock' mode create mock files first
+     * Alias of mockClass
      * 
      * @access public
      * @static
@@ -69,14 +82,11 @@ class Loader extends \Zend_Loader
      * @param mixed $dirs (default: null)
      * @param @rules Array of rules to apply.
      * @throws Loader\Exception
-     * @return void
+     * @return bool
      */
     public static function loadClass($class, $dirs = null, $rules = array())
     {
-        if (self::$mode == self::MODE_MOCK) {
-            self::mockClass($class, $rules, $dirs);
-        }
-        return parent::loadClass($class, $dirs);
+        return self::mockClass($class, $rules, $dirs);
     }
     
     
@@ -96,33 +106,36 @@ class Loader extends \Zend_Loader
             throw new Loader\Exception('Can\'t mock already loaded class');
         }
         
-        $file = self::standardiseFile($className);
-        self::_securityCheck($file);
+        self::checkName($className);
+        $file = self::getFileNameFromClassName($className);
 
-        $targetFile = self::seekFileForInclude($file, $dirs);
-        $rewriter = new Rewriter(file_get_contents($targetFile));
-        $rewriter->addRule(new Rewriter\Rule\Replace(T_DIR, "'" . dirname($file) . "'"));
-        $rewriter->addRule(new Rewriter\Rule\Replace(T_FILE, "'" . $file . "'"));
-        foreach ($rules as $rule) {
-            if (!$rule->getClass()) {
-                $rule->setClass($className);
+        if (self::isMockMode() AND strpos($className, __NAMESPACE__) !== 0) {
+            $targetFile = self::seekFileForInclude($file, $dirs);
+            $rewriter = new Rewriter(file_get_contents($targetFile));
+            $rewriter->addRule(new Rewriter\Rule\Replace(T_DIR, "'" . dirname($file) . "'"));
+            $rewriter->addRule(new Rewriter\Rule\Replace(T_FILE, "'" . $file . "'"));
+            foreach ($rules as $rule) {
+                if (!$rule->getClass()) {
+                    $rule->setClass($className);
+                }
+                $rewriter->addRule($rule);
             }
-            $rewriter->addRule($rule);
+            
+            $filePath = self::$mockPath . '/' . $file;
+            $dir      = dirname($filePath);
+            if (!is_dir($dir))
+                mkdir($dir, 0755, true);
+            file_put_contents($filePath, $rewriter->getCode());
+        } else {
+            $filePath = $file;
         }
         
-        
-        $filePath = self::$mockPath . '/' . $file;
-        $dir      = dirname($filePath);
-        if (!is_dir($dir))
-            mkdir($dir, 0755, true);
-        file_put_contents($filePath, $rewriter->getCode());
-        
-        include($filePath);
-        if (!class_exists($className, false)) {
+        include_once ($filePath);
+        if (!class_exists($className, false) AND !interface_exists($className, false)) {
             require_once 'Loader/Exception.php';
             throw new Loader\Exception("createMock \"$className\" failed");
         }
-
+        return true;
     }
     
     
@@ -184,5 +197,65 @@ class Loader extends \Zend_Loader
         };
         if (is_writable(self::$mockPath))
             $cleaner(self::$mockPath);
+    }
+    
+    /**
+     * Convert class name to file name.
+     * 
+     * @access protected
+     * @static
+     * @param string $className
+     * @return string
+     */
+    protected static function getFileNameFromClassName($className)
+    {
+        $className = ltrim($className, '\\');
+        return str_replace(array('\\', '_'), '/', $className) . '.php';
+    }
+    
+    /**
+     * Check class name for PHP naming rules.
+     * 
+     * @access protected
+     * @static
+     * @return void
+     */
+    protected static function checkName($className)
+    {
+        if (!preg_match('/^([a-zA-Z_\\\x7f-\xff]+)([a-zA-Z0-9_\x7f-\xff]*)$/', $className)) {
+            throw new Exception('Class name contain wrong characters');
+        }
+        return true;
+    }
+    
+    
+    /**
+     * Script shutdown function. Here we'll delete temps files.
+     * 
+     * @access public
+     * @static
+     * @return void
+     */
+    public static function shutdown()
+    {
+        self::clearMockFolder();
+    }
+    
+    
+    /**
+     * SPL autoload function.
+     * 
+     * @access public
+     * @static
+     * @param mixed $className
+     * @return void
+     */
+    public static function autoload($className)
+    {
+        try {
+            return self::loadClass($className);
+        } catch (Exception $e) {}
+        
+        return false;
     }
 }

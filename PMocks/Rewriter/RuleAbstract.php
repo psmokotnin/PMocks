@@ -11,7 +11,7 @@ namespace PMocks\Rewriter;
 abstract class RuleAbstract
 {
     protected
-        $clasName;
+        $className = false;
 
     public function getClass()
     {
