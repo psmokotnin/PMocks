@@ -1,5 +1,7 @@
 # PMocks
 
+[![Build Status](https://travis-ci.org/psmokotnin/PMocks.svg?branch=master)](https://travis-ci.org/psmokotnin/PMocks)
+
 ## Introduction
 
 PMocks is a light library for mock classes in projects for testing.
