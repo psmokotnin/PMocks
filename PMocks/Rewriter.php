@@ -33,6 +33,7 @@ class Rewriter
     {
         $tokens = token_get_all($this->code);
         $line = 1;
+        $this->tokens = array();
         foreach ($tokens as $token) {
             if (is_array($token))
                 $line = $token[2];
@@ -48,7 +49,7 @@ class Rewriter
      * @param Rewriter\Rule $rule
      * @return void
      */
-    public function addRule(Rewriter\Rule $rule)
+    public function addRule(Rewriter\RuleInterface $rule)
     {
         $this->rules[] = $rule;
     }

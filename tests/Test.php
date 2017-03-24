@@ -3,17 +3,21 @@ use PMocks\Log;
 use PMocks\Loader;
 use PMocks\Rewriter\Rule;
 
-class Test extends PHPUnit_Framework_TestCase
+class Test extends PMocks\TestCase
 {
     public function setUp()
     {
-        $this->assertLessThan(0, Zend_Version::compareVersion('1.12'), 'Zend version must be at least 1.12');
-        Loader::mockMode(true);
+        Loader::mockMode(true, true);
     }
     
     public function tearDown()
     {
         Loader::mockMode(false);
+    }
+    
+    public function test_empty()
+    {
+        $example = new \ExampleApplication\Model();
     }
     
     /**
@@ -46,6 +50,17 @@ class Test extends PHPUnit_Framework_TestCase
     /**
      * @runInSeparateProcess
      * @preserveGlobalState disabled
+     */
+    public function test_notMockloadClass()
+    {
+        Loader::mockMode(false);
+        Loader::loadClass('\ExampleApplication\Model');
+        $this->assertTrue(class_exists('\ExampleApplication\Model'));
+    }
+    
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
      */    
     public function test_loadWithDirsArray()
     {
@@ -59,7 +74,7 @@ class Test extends PHPUnit_Framework_TestCase
      */
     public function testConstant()
     {
-        $rule = new Rule\Object\Constant('C_PROPERTY', 'Goodbye');
+        $rule = new Rule\Object\Constant('C_PROPERTY', '"Goodbye"');
         Loader::mockClass('\ExampleApplication\Model', array($rule));
         
         $this->assertEquals('Goodbye', \ExampleApplication\Model::C_PROPERTY);
@@ -185,5 +200,23 @@ class Test extends PHPUnit_Framework_TestCase
     public function testNotFound()
     {
         Loader::mockClass('\Unexists');
+    }
+    
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testAutoload()
+    {
+        //PMocks autoloader
+        $example = new \ExampleApplication\Model();
+        
+        spl_autoload_register(function ($className) {
+            $code = "class $className {}";
+            eval($code);
+            return true;
+        });
+        //use second autoloader
+        $a = new Unexists_Model();
     }
 }

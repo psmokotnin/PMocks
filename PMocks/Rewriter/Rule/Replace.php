@@ -6,7 +6,7 @@ namespace PMocks\Rewriter\Rule;
  *
  * @example $rule = PMocks\Rewriter\Rule\Replace(T_PRIVATE, 'public'); make all private methods public.
  */
-class Replace extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\Rule
+class Replace extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\RuleInterface
 {
     protected
         $targetToken,

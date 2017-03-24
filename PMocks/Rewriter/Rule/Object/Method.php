@@ -8,7 +8,7 @@ namespace PMocks\Rewriter\Rule\Object;
  * Each call of Zend_Cache_Core::send will add data to PMocks\Log and retun true.
  * If $className not set, it will be set in \PMocks\Loader::mockClass.
  */
-class Method extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\Rule
+class Method extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\RuleInterface
 {
     protected
         $functionName,
@@ -36,7 +36,7 @@ class Method extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\R
     
     /**
      * remove all new lines from inserted code.
-     * Use it if your code have more than 1 line and you want to save original line numbers.
+     * Use it if your code has more than 1 lines and you want to save original line numbers.
      *
      * $code = 'for ($i = 0; $i < 10; $i ++) {
      *     someFunc($i);

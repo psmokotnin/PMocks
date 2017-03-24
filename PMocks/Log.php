@@ -80,7 +80,8 @@ class Log
      */
     public static function getLastCall($class, $method)
     {
-        return end(self::getCalls($class, $method));
+        $calls = self::getCalls($class, $method);
+        return end($calls);
     }
     
     /**
@@ -94,7 +95,7 @@ class Log
      */
     public static function getLastCallArgs($class, $method)
     {
-        $lastCall = end(self::getCalls($class, $method));
+        $lastCall = self::getLastCall($class, $method);
         return $lastCall['args'];
     }
 }

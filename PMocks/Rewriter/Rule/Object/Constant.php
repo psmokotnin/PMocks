@@ -5,7 +5,7 @@ namespace PMocks\Rewriter\Rule\Object;
  * Rule for change constant value in the class.
  * @example $rule = \PMocks\Rewriter\Rule\Object\Constant('API_BASE_URI', 'http://example.com/api/', 'Zend_Service_Twitter');
  */
-class Constant extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\Rule
+class Constant extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter\RuleInterface
 {
     protected
         $constantName,
@@ -41,7 +41,7 @@ class Constant extends \PMocks\Rewriter\RuleAbstract implements \PMocks\Rewriter
         $classParse = explode('\\', $this->getClass());
         $targetClassName = end($classParse);
         array_pop($classParse);
-        if ($classParse[0] == '')
+        if ($classParse AND $classParse[0] == '')
             array_shift($classParse);
 
         $targetNamespace = implode('\\', $classParse);

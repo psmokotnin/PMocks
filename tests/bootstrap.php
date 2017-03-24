@@ -1,4 +1,5 @@
-<?
+<?php
+error_reporting(E_ALL);
 chdir(dirname(__FILE__) . '/..');
 
 set_include_path(implode(PATH_SEPARATOR, array(
@@ -6,9 +7,13 @@ set_include_path(implode(PATH_SEPARATOR, array(
     get_include_path(),
 )));
 
-require_once 'Zend/Loader.php';
-require_once 'Zend/Loader/Autoloader.php';
 require_once 'PMocks/Loader.php';
 
-$autoloader = Zend_Loader_Autoloader::getInstance();
-$autoloader->registerNamespace('PMocks');
+if (!is_dir(\PMocks\Loader::$mockPath))
+    mkdir(is_dir(\PMocks\Loader::$mockPath), 0755, true);
+    
+if (version_compare(PHP_VERSION, '7.0') >= 0) {
+    require_once 'tests/TestCase.7.php';
+} else {
+    require_once 'tests/TestCase.5.php';
+}
