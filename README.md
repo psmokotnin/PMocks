@@ -40,6 +40,18 @@ Don't forget to include this docblock before each testMethod that use PMocks. To
  */
 ```
 
+## How to use
+
+### mockClass
+
+Base method for mock. This method find a file of original class implementation, apply rules and load modefied file. It use PSR-0 standart for searching files.
+```
+Loader::mockClass($className, $rules, $dirs)
+```
+* $className - name of mocking class
+* $rules - array of mock rules. Default empty array.
+* $dirs - allow you to add special dir names for searching files. Default null.
+
 ### mockMode
 
 Before mock anything you should enable:
@@ -70,7 +82,9 @@ $rule = \PMocks\Rewriter\Rule\Object\Constant('API_BASE_URI', 'http://example.co
 
 Changes the behavior of the method.
 ```
-new Rule\Object\Method('foo', 'return 123;');
+$rules[] = new Rule\Object\Method('foo', 'return 123;');
+Loader::mockClass('Bar', $rules);
+$example = new Bar();
 $this->assertEquals(123, $example->foo());
 ```
 
